@@ -379,3 +379,42 @@ async function confirmSfrOnly(inn) {
         }
     } catch (e) {}
 }
+
+async function getIfnsByAddress() {
+    const addr = document.getElementById('addressInput').value.trim();
+    const resDiv = document.getElementById('addressIfnsResult');
+    const DADATA_KEY = "1e72b6fad742701b3a642bc189774e34e2ae7593"; 
+    if (!addr) return;
+    resDiv.innerHTML = "Связь с ФНС...";
+    try {
+        const response = await fetch("https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Authorization": "Token " + DADATA_KEY
+            },
+            body: JSON.stringify({ query: addr, count: 1 })
+        });
+        const result = await response.json();
+        if (result.suggestions && result.suggestions.length > 0) {
+            const data = result.suggestions[0].data;
+            resDiv.innerHTML = `Код ИФНС: <span style="color:#d32f2f; font-size:18px; font-weight:bold;">${data.tax_office || "—"}</span>
+                                <br><small>${data.postal_code || ""} ${result.suggestions[0].value}</small>`;
+        } else {
+            resDiv.innerHTML = "Адрес не найден";
+        }
+    } catch (error) {
+        resDiv.innerHTML = "Ошибка связи";
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initAll();
+    document.getElementById('addressInput')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') getIfnsByAddress();
+    });
+    document.getElementById('innInput')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') getData();
+    });
+});
