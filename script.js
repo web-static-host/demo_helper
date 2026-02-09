@@ -6,8 +6,9 @@ let attachedFiles = {
     registration: null  // PDF (Карточка)
 };
 
-// Хранилище для поиска менеджеров
+// Хранилище для менеджеров
 let allManagers = [];
+let filteredManagers = [];
 
 // --- ИНИЦИАЛИЗАЦИЯ ---
 async function initAll() {
@@ -64,11 +65,13 @@ async function loadStaff() {
                 staffData.push({name, email});
                 let opt = document.createElement('option');
                 opt.value = email; opt.innerText = name;
-                select.appendChild(opt);
+                if (select) select.appendChild(opt);
             }
         });
     } catch(e) {}
 }
+
+// --- ЛОГИКА МЕНЕДЖЕРОВ ---
 
 async function loadManagers() {
     if (typeof MANAGERS_CSV_URL === 'undefined' || !MANAGERS_CSV_URL) return;
@@ -76,7 +79,6 @@ async function loadManagers() {
         const response = await fetch(MANAGERS_CSV_URL);
         const data = await response.text();
         const rows = data.split(/\r?\n/).slice(1);
-        
         allManagers = [];
         rows.forEach(row => {
             const cols = row.split(/[,;](?=(?:(?:[^"]*"){2})*[^"]*$)/);
@@ -86,32 +88,66 @@ async function loadManagers() {
                 if (name && email) allManagers.push({ name, email });
             }
         });
-        renderManagerOptions(allManagers);
+        filteredManagers = [...allManagers];
     } catch(e) { console.error("Ошибка загрузки менеджеров"); }
 }
 
-function renderManagerOptions(list) {
-    const select = document.getElementById('managerSelect');
-    if (!select) return;
-    select.innerHTML = '<option value="">Выберите менеджера...</option>';
-    list.forEach(m => {
-        let opt = document.createElement('option');
-        opt.value = m.email; opt.innerText = m.name;
-        select.appendChild(opt);
-    });
+function showAllManagers() {
+    const input = document.getElementById('managerSearch');
+    const term = input.value.toLowerCase().trim();
+    filteredManagers = term 
+        ? allManagers.filter(m => m.name.toLowerCase().includes(term))
+        : allManagers;
+    renderManagerDropdown();
 }
 
 function filterManagers() {
-    const term = document.getElementById('managerSearch').value.toLowerCase();
-    const filtered = allManagers.filter(m => 
-        m.name.toLowerCase().includes(term) || m.email.toLowerCase().includes(term)
-    );
-    renderManagerOptions(filtered);
-    if (filtered.length === 1) {
-        document.getElementById('managerSelect').value = filtered[0].email;
-        syncManagerEmail();
+    const input = document.getElementById('managerSearch');
+    const term = input.value.toLowerCase().trim();
+    filteredManagers = term 
+        ? allManagers.filter(m => m.name.toLowerCase().includes(term))
+        : allManagers;
+    renderManagerDropdown();
+}
+
+function renderManagerDropdown() {
+    const dropdown = document.getElementById('managerDropdown');
+    if (!dropdown) return;
+    if (filteredManagers.length > 0) {
+        dropdown.innerHTML = filteredManagers.map(m => 
+            `<div class="dropdown-item" onclick="selectManager('${m.name}', '${m.email}')">${m.name}</div>`
+        ).join('');
+        dropdown.style.display = 'block';
+    } else {
+        dropdown.style.display = 'none';
     }
 }
+
+function handleManagerKey(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        if (filteredManagers.length > 0) {
+            selectManager(filteredManagers[0].name, filteredManagers[0].email);
+        }
+    }
+}
+
+function selectManager(name, email) {
+    const input = document.getElementById('managerSearch');
+    const emailField = document.getElementById('mailTo');
+    const dropdown = document.getElementById('managerDropdown');
+    if (input) input.value = name;
+    if (emailField) emailField.value = email;
+    if (dropdown) dropdown.style.display = 'none';
+}
+
+document.addEventListener('click', (e) => {
+    const search = document.getElementById('managerSearch');
+    const dropdown = document.getElementById('managerDropdown');
+    if (search && !search.contains(e.target) && dropdown && !dropdown.contains(e.target)) {
+        dropdown.style.display = 'none';
+    }
+});
 
 // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
 function toggleAstral() {
@@ -123,12 +159,6 @@ function showStaffEmail() {
     const email = document.getElementById('staffSelect').value;
     const res = document.getElementById('staffEmailResult');
     res.innerHTML = email ? `Почта: <b>${email}</b> <button class="copy-btn" onclick="copyText('${email}', this)">📋</button>` : "";
-}
-
-function syncManagerEmail() {
-    const select = document.getElementById('managerSelect');
-    const input = document.getElementById('mailTo');
-    if (select && input) input.value = select.value;
 }
 
 function copyText(text, btn) {
@@ -155,7 +185,6 @@ function copyPass() {
 }
 
 // --- ПОЧТОВАЯ ЛОГИКА ---
-
 function initDragAndDrop() {
     const dropZone = document.getElementById('dropZone');
     if (!dropZone) return;
@@ -183,6 +212,7 @@ function handleFiles(files) {
 
 function renderFileList() {
     const fileList = document.getElementById('fileList');
+    if (!fileList) return;
     fileList.innerHTML = "";
     if (attachedFiles.license) fileList.innerHTML += `<div style="color:green">📦 Лицензия (ZIP): ${attachedFiles.license.name}</div>`;
     if (attachedFiles.registration) fileList.innerHTML += `<div style="color:green">📄 Карточка (PDF): ${attachedFiles.registration.name}</div>`;
@@ -201,7 +231,6 @@ function applyTemplate() {
     const delivery = document.getElementById('mailDeliveryName')?.value || "Программный продукт 1С";
     const bodyArea = document.getElementById('mailBody');
     const orderType = document.getElementById('orderTypeSelect')?.value;
-    
     const instrBox = document.getElementById('defaultInstructionBox');
     const instrName = document.getElementById('instructionFileName');
 
@@ -217,20 +246,7 @@ function applyTemplate() {
         if (instrName) instrName.innerText = "Инструкция по активации КП Отраслевой.ppsx (по умолчанию)";
     }
 
-    const content = `
-<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff;">
-  <tr>
-    <td align="center">
-      <div style="width: 580px; font-family: Arial, sans-serif; font-size: 18px; line-height: 1.2; color: #000000; text-align: center;">
-        <h2 style="color: #D71920; font-size: 26px; font-weight: bold; margin-bottom: 20px;">Уважаемый клиент!</h2>
-        <p style="margin-bottom: 15px;"><b>Вы заказывали программный продукт<br>${delivery}.</b></p>
-        <p style="margin-bottom: 25px;">Отгрузка выполнена, направляю Вам во вложении<br>инструкцию для установки программного продукта, а также архив лицензии.</p>
-        <p style="margin-bottom: 10px;">Обращаю Ваше внимание, приложенный архив с лицензией рекомендую отдельно сохранить в надежном месте, на случай переустановки программы или выхода из строя персонального компьютера.</p>
-      </div>
-    </td>
-  </tr>
-</table>`.replace(/>\s+</g, '><').replace(/\n/g, ' ').trim();
-    
+    const content = `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff;"><tr><td align="center"><div style="width: 580px; font-family: Arial, sans-serif; font-size: 18px; line-height: 1.2; color: #000000; text-align: center;"><h2 style="color: #D71920; font-size: 26px; font-weight: bold; margin-bottom: 20px;">Уважаемый клиент!</h2><p style="margin-bottom: 15px;"><b>Вы заказывали программный продукт<br>${delivery}.</b></p><p style="margin-bottom: 25px;">Отгрузка выполнена, направляю Вам во вложении<br>инструкцию для установки программного продукта, а также архив лицензии.</p><p style="margin-bottom: 10px;">Обращаю Ваше внимание, приложенный архив с лицензией рекомендую отдельно сохранить в надежном месте, на случай переустановки программы или выхода из строя персонального компьютера.</p></div></td></tr></table>`.replace(/>\s+</g, '><').replace(/\n/g, ' ').trim();
     bodyArea.value = content;
 }
 
@@ -243,31 +259,16 @@ async function sendMail() {
 
     if (!to || !org || !delivery) { alert("Заполните Кому, Организацию и Поставку!"); return; }
 
-    if (orderType === 'local') {
-        if (!attachedFiles.license || !attachedFiles.registration) {
-            alert("Для локальной 1С нужны и Лицензия (ZIP), и Карточка (PDF)!"); return;
-        }
-    } else if (orderType === 'dop') {
-        if (!attachedFiles.license) {
-            alert("Прикрепите Лицензию (ZIP)!"); return;
-        }
-    } else if (orderType === 'otrasl') {
-        if (!attachedFiles.license) {
-            alert("Для отраслевого КП обязательна Лицензия (ZIP)!"); return;
-        }
-        if (attachedFiles.registration) {
-            alert("Для этого типа отгрузки прикрепляется только Лицензия (ZIP). Удалите Карточку (PDF)."); return;
-        }
+    if (orderType === 'local' && (!attachedFiles.license || !attachedFiles.registration)) {
+        alert("Для локальной 1С нужны и Лицензия (ZIP), и Карточка (PDF)!"); return;
+    } else if ((orderType === 'dop' || orderType === 'otrasl') && !attachedFiles.license) {
+        alert("Для этого типа отгрузки обязательна Лицензия (ZIP)!"); return;
     }
 
     try {
         const filesToUpload = [];
-        if (attachedFiles.license) {
-            filesToUpload.push({ name: attachedFiles.license.name, content: await fileToBase64(attachedFiles.license) });
-        }
-        if (attachedFiles.registration) {
-            filesToUpload.push({ name: attachedFiles.registration.name, content: await fileToBase64(attachedFiles.registration) });
-        }
+        if (attachedFiles.license) filesToUpload.push({ name: attachedFiles.license.name, content: await fileToBase64(attachedFiles.license) });
+        if (attachedFiles.registration) filesToUpload.push({ name: attachedFiles.registration.name, content: await fileToBase64(attachedFiles.registration) });
 
         const payload = { 
             order_type: orderType,
@@ -291,7 +292,7 @@ async function sendMail() {
     } catch (error) { alert("Шлюз не отвечает!"); }
 }
 
-// --- УПРАВЛЕНИЕ МОДАЛКОЙ ---
+// --- МОДАЛКА ---
 function openMailModal() {
     const modal = document.getElementById('mailModal');
     if (modal) {
@@ -308,7 +309,7 @@ function closeMailModal() {
     if (document.getElementById('fileList')) document.getElementById('fileList').innerHTML = "";
     if (document.getElementById('fileLic')) document.getElementById('fileLic').value = "";
     if (document.getElementById('managerSearch')) document.getElementById('managerSearch').value = "";
-    renderManagerOptions(allManagers);
+    if (document.getElementById('mailTo')) document.getElementById('mailTo').value = "";
 }
 
 window.onclick = function(event) {
@@ -316,31 +317,22 @@ window.onclick = function(event) {
     if (event.target == modal) closeMailModal();
 }
 
-// --- ПОИСК РЕКВИЗИТОВ И СФР ---
+// --- РЕКВИЗИТЫ И СФР ---
 async function getData() {
     const innRaw = document.getElementById('innInput').value.trim();
     const body = document.getElementById('resBody');
     const errorBox = document.getElementById('errorBox');
-    const resDivSfr = document.getElementById('sfrResult');
-    
     if (!innRaw) return;
     const inn = innRaw.replace(/\D/g, '');
-    
     errorBox.innerText = "";
-    resDivSfr.innerHTML = ""; 
     document.getElementById('resTable').style.display = 'none';
 
     try {
         const response = await fetch("https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party", {
             method: "POST",
-            headers: { 
-                "Content-Type": "application/json", 
-                "Accept": "application/json", 
-                "Authorization": "Token " + API_KEY 
-            },
+            headers: { "Content-Type": "application/json", "Accept": "application/json", "Authorization": "Token " + API_KEY },
             body: JSON.stringify({query: inn})
         });
-        
         const result = await response.json();
         if (result.suggestions && result.suggestions.length > 0) {
             const d = result.suggestions[0].data;
@@ -353,21 +345,8 @@ async function getData() {
                 ["Руководитель", d.management?.name || "—"],
                 ["Статус", d.state?.status === "ACTIVE" ? "✅ Действующее" : "⚠️ " + d.state?.status]
             ];
-
-            body.innerHTML = fields.map(f => `
-                <tr>
-                    <td><b>${f[0]}</b></td>
-                    <td>${f[1]} <button class="copy-btn" onclick="copyText('${f[1]}', this)">📋</button></td>
-                </tr>
-            `).join("") + 
-            `<tr>
-                <td><b>Код СФР</b></td>
-                <td>
-                    <strong id="sfrValue" style="color:#007bff;">Не указан</strong>
-                    <button class="copy-btn" onclick="getSfrOnly()">Запросить</button>
-                </td>
-            </tr>`;
-
+            body.innerHTML = fields.map(f => `<tr><td><b>${f[0]}</b></td><td>${f[1]} <button class="copy-btn" onclick="copyText('${f[1]}', this)">📋</button></td></tr>`).join("") + 
+            `<tr><td><b>Код СФР</b></td><td><strong id="sfrValue" style="color:#007bff;">Не указан</strong> <button class="copy-btn" onclick="getSfrOnly()">Запросить</button></td></tr>`;
             document.getElementById('resTable').style.display = 'table';
             if (document.getElementById('mailOrg')) {
                 document.getElementById('mailOrg').value = d.name?.short_with_opf || d.name?.full_with_opf || "";

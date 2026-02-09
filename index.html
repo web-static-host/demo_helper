@@ -10,7 +10,7 @@
     <script src="config.js"></script>
     <script src="script.js" defer></script>
     <style>
-        /* Стили для нового выпадающего списка менеджеров */
+        /* Стили для выпадающего списка менеджеров */
         .custom-dropdown {
             position: absolute;
             top: 100%;
@@ -31,6 +31,7 @@
             cursor: pointer;
             font-size: 13px;
             border-bottom: 1px solid #f0f0f0;
+            color: #333;
         }
         .dropdown-item:last-child {
             border-bottom: none;
@@ -55,7 +56,6 @@
         <div id="errorBox" style="color:red; margin-bottom:10px;"></div>
         
         <table class="result-table" id="resTable"><tbody id="resBody"></tbody></table>
-
         <div id="sfrResult" style="margin-top: 15px; min-height: 50px; font-size: 14px;"></div>
 
         <div id="rawContainer" style="display:none; margin-top:20px;">
@@ -112,23 +112,6 @@
 
     <div class="column col-right">
         <h2>Доп инструменты</h2>
-
-        <details class="tool-section">
-            <summary>
-                <div class="summary-content">
-                    <span>ИФНС по адресу</span>
-                    <span class="tooltip"><span class="tooltip-icon">?</span><span class="tooltiptext">Ищет код ИФНС и индекс по адресу.</span></span>
-                </div>
-            </summary>
-            <div style="padding-top:10px;">
-                <input type="text" id="addressInput" placeholder="Город, улица, дом..." style="width: 100%; margin-bottom: 8px; box-sizing: border-box; padding: 5px;">
-                <button class="gen-btn" style="width: 100%;" onclick="getIfnsByAddress()">Найти код</button>
-                <div id="addressIfnsResult" style="margin-top: 10px; font-weight: bold; font-size: 13px;">
-                    <span style="color: #888; font-weight: normal;">Введите адрес и нажмите поиск</span>
-                </div>
-            </div>
-        </details>
-
         <details class="tool-section">
             <summary>
                 <div class="summary-content">
@@ -169,8 +152,6 @@
         <span onclick="closeMailModal()" style="position:absolute; right:15px; top:10px; cursor:pointer; font-size:24px;">&times;</span>
         <h3 style="margin-top:0;">Подготовка отгрузки</h3>
         
-        <div id="mailErrorBox"></div>
-
         <div style="margin-bottom:12px;">
             <label style="font-size:11px; font-weight:bold; color: #555;">Тип отгрузки:</label>
             <select id="orderTypeSelect" style="width:100%; padding:6px;" onchange="applyTemplate()">
@@ -180,19 +161,20 @@
             </select>
         </div>
 
-        <div style="margin-bottom:12px; position: relative;">
+        <div style="margin-bottom:12px;">
             <label style="font-size:11px; font-weight:bold; color: #555;">Кому (Менеджер):</label>
-            <div style="display:flex; gap:5px;">
+            <div style="display:flex; gap:5px; position: relative;">
                 <div style="flex-grow:1; position: relative;">
-                    <input type="text" id="managerSearch" placeholder="🔍 Поиск или выбор из списка..." 
+                    <input type="text" id="managerSearch" placeholder="🔍 Найти менеджера..." 
                            style="width:100%; padding:6px; font-size:12px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;"
                            oninput="filterManagers()" 
-                           onclick="filterManagers()"
+                           onclick="showAllManagers()"
+                           onfocus="showAllManagers()"
                            onkeydown="handleManagerKey(event)"
                            autocomplete="off">
                     <div id="managerDropdown" class="custom-dropdown" style="display:none;"></div>
                 </div>
-                <input type="text" id="mailTo" placeholder="Email" style="width:160px; padding:6px;" readonly>
+                <input type="text" id="mailTo" placeholder="Email" style="width:160px; padding:6px; font-size:12px;" readonly>
             </div>
         </div>
 
@@ -208,21 +190,18 @@
 
         <div style="margin-bottom:15px;">
             <label style="font-size:11px; font-weight:bold; color: #555;">Предпросмотр (HTML):</label>
-            <textarea id="mailBody" rows="6" style="width:100%; padding:8px; box-sizing:border-box; font-size:12px; background:#f4f4f4; border: 1px solid #ddd;" readonly></textarea>
+            <textarea id="mailBody" rows="6" style="width:100%; padding:8px; box-sizing:border-box; font-size:11px; background:#f4f4f4; border: 1px solid #ddd;" readonly></textarea>
         </div>
 
         <div style="margin-bottom:15px; border-top: 1px solid #eee; padding-top: 10px;">
             <label style="font-size:11px; font-weight:bold; color: #555;">Вложения:</label>
-            
-            <div id="defaultInstructionBox" style="background: #eef9ff; padding: 5px 10px; border-radius: 4px; border: 1px solid #cce5ff; font-size: 12px; margin-bottom: 8px; display: flex; align-items: center;">
+            <div id="defaultInstructionBox" style="background: #eef9ff; padding: 5px 10px; border-radius: 4px; border: 1px solid #cce5ff; font-size: 11px; margin-bottom: 8px; display: flex; align-items: center;">
                 <span style="margin-right: 10px;">📄</span> 
-                <span id="instructionFileName">Инструкция_по_установке_электронной_версии_программы_1С.pdf (по умолчанию)</span>
+                <span id="instructionFileName">Инструкция по установке (по умолчанию)</span>
             </div>
-
-            <div id="dropZone" style="border: 2px dashed #bbb; padding: 15px; text-align: center; border-radius: 6px; background: #fafafa; cursor: pointer; transition: 0.3s;">
-                <span id="dropZoneText" style="font-size: 12px; color: #777;">Перетащите <b>Лицензию (ZIP)</b> и <b>Карточку (PDF)</b> сюда или нажмите для выбора</span>
-                <div id="fileList" style="margin-top: 8px; font-size: 11px; color: #28a745; text-align: left;"></div>
-                
+            <div id="dropZone" style="border: 2px dashed #bbb; padding: 15px; text-align: center; border-radius: 6px; background: #fafafa; cursor: pointer;">
+                <span style="font-size: 11px; color: #777;">Перетащите <b>ZIP</b> и <b>PDF</b> сюда</span>
+                <div id="fileList" style="margin-top: 8px; font-size: 11px; color: #28a745;"></div>
                 <input type="file" id="fileLic" accept=".pdf,.zip" style="display:none;" multiple>
             </div>
         </div>
