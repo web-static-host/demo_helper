@@ -9,6 +9,36 @@
     <link rel="stylesheet" href="style.css">
     <script src="config.js"></script>
     <script src="script.js" defer></script>
+    <style>
+        /* Стили для нового выпадающего списка менеджеров */
+        .custom-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ccc;
+            border-top: none;
+            max-height: 180px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            border-bottom-left-radius: 4px;
+            border-bottom-right-radius: 4px;
+        }
+        .dropdown-item {
+            padding: 8px 10px;
+            cursor: pointer;
+            font-size: 13px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+        .dropdown-item:hover {
+            background-color: #eef9ff;
+        }
+    </style>
 </head>
 <body>
 
@@ -150,20 +180,21 @@
             </select>
         </div>
 
-        <div style="margin-bottom:12px;">
-    <label style="font-size:11px; font-weight:bold; color: #555;">Кому (Менеджер):</label>
-    <div style="margin-bottom: 5px;">
-        <input type="text" id="managerSearch" placeholder="🔍 Быстрый поиск..." 
-               style="width:100%; padding:5px; font-size:12px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;"
-               oninput="filterManagers()">
-    </div>
-    <div style="display:flex; gap:5px;">
-        <select id="managerSelect" style="flex-grow:1; padding:6px;" onchange="syncManagerEmail()">
-            <option value="">Загрузка списка...</option>
-        </select>
-        <input type="text" id="mailTo" placeholder="Email" style="width:160px; padding:6px;">
-    </div>
-</div>
+        <div style="margin-bottom:12px; position: relative;">
+            <label style="font-size:11px; font-weight:bold; color: #555;">Кому (Менеджер):</label>
+            <div style="display:flex; gap:5px;">
+                <div style="flex-grow:1; position: relative;">
+                    <input type="text" id="managerSearch" placeholder="🔍 Поиск или выбор из списка..." 
+                           style="width:100%; padding:6px; font-size:12px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;"
+                           oninput="filterManagers()" 
+                           onclick="filterManagers()"
+                           onkeydown="handleManagerKey(event)"
+                           autocomplete="off">
+                    <div id="managerDropdown" class="custom-dropdown" style="display:none;"></div>
+                </div>
+                <input type="text" id="mailTo" placeholder="Email" style="width:160px; padding:6px;" readonly>
+            </div>
+        </div>
 
         <div style="margin-bottom:10px;">
             <label style="font-size:11px; font-weight:bold; color: #555;">Организация:</label>

@@ -153,3 +153,25 @@ pre { background: #272822; color: #f8f8f2; padding: 15px; border-radius: 5px; ov
 .column, .tool-section, details {
     overflow: visible !important; /* Разрешаем элементам выходить за границы */
 }
+
+.custom-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #ccc;
+    border-top: none;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+.dropdown-item {
+    padding: 8px 10px;
+    cursor: pointer;
+    font-size: 13px;
+}
+.dropdown-item:hover, .dropdown-item.active {
+    background-color: #f0f0f0;
+}
