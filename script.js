@@ -50,37 +50,35 @@ async function loadLinks(url, targetId) {
         container.innerHTML = rows.map(row => {
             const cols = row.split(/[,;](?=(?:(?:[^"]*"){2})*[^"]*$)/);
             if (cols.length < 2) return '';
-            
             const name = cols[0].replace(/"/g, '').trim();
             const val = cols[1].replace(/"/g, '').trim();
             const isDownloadable = val.includes('export=download');
 
-            // Название оставляем просто текстом
-            const nameHtml = `<span class="link-name" style="font-weight:bold; color:#555;">${name}</span>`;
-            
-            // Ссылку делаем кликабельной, синей и покрупнее
-            // Если это файл (isDownloadable), добавляем атрибут download
-            const linkHtml = `<a href="${val}" 
-                                ${isDownloadable ? 'download' : 'target="_blank"'} 
-                                class="link-url" 
-                                style="font-size: 13px; color: #1a73e8; text-decoration: underline; margin-top: 2px; display: block;">
-                                ${val}
-                             </a>`;
-
-            return `
-                <div class="link-item" style="display:flex; justify-content:space-between; align-items:center; padding: 8px 0; border-bottom: 1px solid #f0f0f0;">
-                    <div class="link-info" style="display:flex; flex-direction:column; max-width: 85%;">
-                        ${nameHtml}
-                        ${linkHtml}
+            // --- ИЗМЕНЕНИЯ ТОЛЬКО ДЛЯ linksContainer ---
+            if (targetId === 'linksContainer') {
+                return `<div class="link-item">
+                    <div class="link-info">
+                        <span class="link-name">${name}</span>
+                        <a href="${val}" target="_blank" class="link-url" style="font-size: 13px; color: #1a73e8; text-decoration: underline; display: block; margin-top: 2px;">${val}</a>
                     </div>
                     <div style="display:flex; gap:5px;">
-                        <button class="copy-btn" onclick="copyText('${val}', this)" title="Скопировать ссылку" style="cursor:pointer; background:none; border:none; font-size:16px;">📋</button>
+                        <button class="copy-btn" onclick="copyText('${val}', this)">📋</button>
                     </div>
                 </div>`;
+            }
+
+            // --- ОСТАЛЬНЫЕ ВКЛАДКИ (БЕЗ ИЗМЕНЕНИЙ) ---
+            let actionBtn = '';
+            if (targetId !== 'ofdLinksContainer') {
+                actionBtn = isDownloadable 
+                    ? `<a href="${val}" download class="copy-btn" style="text-decoration:none;" title="Скачать файл">📥</a>`
+                    : `<a href="${val}" target="_blank" class="copy-btn" style="text-decoration:none;" title="Открыть ссылку">🔗</a>`;
+            }
+            const urlDisplay = isDownloadable ? 'display: none;' : '';
+            return `<div class="link-item"><div class="link-info"><span class="link-name">${name}</span><span class="link-url" style="${urlDisplay}">${val}</span></div><div style="display:flex; gap:5px;">${actionBtn}<button class="copy-btn" onclick="copyText('${val}', this)">📋</button></div></div>`;
+            
         }).join('');
-    } catch(e) { 
-        container.innerHTML = "<div style='padding:10px; color:red;'>Ошибка загрузки</div>"; 
-    }
+    } catch(e) { container.innerHTML = "<div style='padding:10px; color:red;'>Ошибка загрузки</div>"; }
 }
 
 let staffData = [];
