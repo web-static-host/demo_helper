@@ -73,11 +73,7 @@ button.primary-btn:hover { background: #0056b3; }
 
 pre { background: #272822; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 12px; max-height: 250px; }
 
-.link-name:hover {
-    color: #007bff !important;
-    text-decoration: underline !important;
-    cursor: pointer;
-}
+
 
 /* Контейнер подсказки */
 .tooltip {
