@@ -9,37 +9,7 @@
     <link rel="stylesheet" href="style.css">
     <script src="config.js"></script>
     <script src="script.js" defer></script>
-    <style>
-        /* Стили для выпадающего списка менеджеров */
-        .custom-dropdown {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            right: 0;
-            background: white;
-            border: 1px solid #ccc;
-            border-top: none;
-            max-height: 180px;
-            overflow-y: auto;
-            z-index: 1000;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-            border-bottom-left-radius: 4px;
-            border-bottom-right-radius: 4px;
-        }
-        .dropdown-item {
-            padding: 8px 10px;
-            cursor: pointer;
-            font-size: 13px;
-            border-bottom: 1px solid #f0f0f0;
-            color: #333;
-        }
-        .dropdown-item:last-child {
-            border-bottom: none;
-        }
-        .dropdown-item:hover {
-            background-color: #eef9ff;
-        }
-    </style>
+
 </head>
 <body>
 
@@ -47,7 +17,7 @@
     <div class="column col-left">
         <h2 style="display: flex; align-items: center;">
             Реквизиты по ИНН 
-            <span class="tooltip"><span class="tooltip-icon">?</span><span class="tooltiptext">Основной инструмент для получения данных об организации или ИП. Введите ИНН в поле поиска.</span></span>
+            <span class="tooltip"><span class="tooltip-icon">?</span><span class="tooltiptext">Основной инструмент для получения данных об организации или ИП в один клик. Введите ИНН в поле поиска. Система подтянет название (полное и сокращенное), КПП, ОГРН, адрес, ФИО руководителя и код ИФНС.</span></span>
         </h2>
         <div class="search-box">
             <input type="text" id="innInput" placeholder="Введите ИНН">
@@ -56,6 +26,7 @@
         <div id="errorBox" style="color:red; margin-bottom:10px;"></div>
         
         <table class="result-table" id="resTable"><tbody id="resBody"></tbody></table>
+
         <div id="sfrResult" style="margin-top: 15px; min-height: 50px; font-size: 14px;"></div>
 
         <div id="rawContainer" style="display:none; margin-top:20px;">
@@ -170,6 +141,12 @@
 
 <div id="mailModal" class="modal" style="display:none; position:fixed; z-index:999; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5);">
     <div class="modal-content" style="background:#fff; margin:2% auto; padding:20px; width:480px; border-radius:8px; position:relative; box-shadow: 0 4px 15px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto;">
+        <div id="gatewayError" style="display:none; align-items:center; justify-content:center; gap:8px; background:#fff0f0; border:1px solid #ffcccc; padding:8px; border-radius:6px; margin-bottom:12px; color:#d93025; font-size:12px;">
+        <span style="font-weight:bold;">⚠️ Шлюз не запущен!</span>
+        <a href="app/gateway.exe" style="color:#1a73e8; text-decoration:underline;">Скачать шлюз <span class="tooltip"><span class="tooltip-icon">?</span><span class="tooltiptext">Шлюз необходим для передачи данных в Thunderbird и автоматического прикрепления инструкций. Без него отправка невозможна.</span></a>
+    
+         </div>
+        
         <span onclick="closeMailModal()" style="position:absolute; right:15px; top:10px; cursor:pointer; font-size:24px;">&times;</span>
         <h3 style="margin-top:0;">Подготовка отгрузки</h3>
         
@@ -195,7 +172,7 @@
                            autocomplete="off">
                     <div id="managerDropdown" class="custom-dropdown" style="display:none;"></div>
                 </div>
-                <input type="text" id="mailTo" placeholder="Email" style="width:160px; padding:6px; font-size:12px;" readonly>
+                <input type="text" id="mailTo" placeholder="Email" style="width:160px; padding:6px; font-size:12px;">
             </div>
         </div>
 
@@ -209,7 +186,7 @@
             <input type="text" id="mailDeliveryName" placeholder="Напр: 1С:Бухгалтерия 8. Базовая версия" style="width:100%; padding:6px; box-sizing:border-box;">
         </div>
 
-        <div style="margin-bottom:15px;">
+        <div style="display: none;">
             <label style="font-size:11px; font-weight:bold; color: #555;">Предпросмотр (HTML):</label>
             <textarea id="mailBody" rows="6" style="width:100%; padding:8px; box-sizing:border-box; font-size:11px; background:#f4f4f4; border: 1px solid #ddd;" readonly></textarea>
         </div>
@@ -221,7 +198,7 @@
                 <span id="instructionFileName">Инструкция по установке (по умолчанию)</span>
             </div>
             <div id="dropZone" style="border: 2px dashed #bbb; padding: 15px; text-align: center; border-radius: 6px; background: #fafafa; cursor: pointer;">
-                <span style="font-size: 11px; color: #777;">Перетащите <b>ZIP</b> и <b>PDF</b> сюда</span>
+                <span id="dropZoneText" style="font-size: 11px; color: #777;">Перетащите <b>ZIP</b> и <b>PDF</b> сюда</span>
                 <div id="fileList" style="margin-top: 8px; font-size: 11px; color: #28a745;"></div>
                 <input type="file" id="fileLic" accept=".pdf,.zip" style="display:none;" multiple>
             </div>

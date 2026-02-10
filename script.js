@@ -12,12 +12,28 @@ let filteredManagers = [];
 
 // --- ИНИЦИАЛИЗАЦИЯ ---
 async function initAll() {
+    checkGateway(); // Проверяем шлюз первым делом
     loadLinks(GOOGLE_SHEET_CSV_URL, 'linksContainer');
     loadLinks(OFD_CONFIG_CSV_URL, 'ofdLinksContainer');
     loadLinks(INSTRUCTIONS_CSV_URL, 'instructionsContainer'); 
     loadStaff();
     loadManagers();
     initDragAndDrop(); 
+}
+
+// --- ПРОВЕРКА ШЛЮЗА ПРИ ЗАГРУЗКЕ ---
+async function checkGateway() {
+    const notify = document.getElementById('gatewayNotify');
+    try {
+        const response = await fetch(`${LOCAL_SERVER}/ping`, { method: 'GET' });
+        if (response.ok) {
+            notify.style.display = 'none'; // Скрываем, если работает
+        } else {
+            throw new Error();
+        }
+    } catch (e) {
+        notify.style.display = 'flex'; // Показываем красную плашку, если упало
+    }
 }
 
 window.addEventListener('DOMContentLoaded', initAll);
@@ -233,17 +249,25 @@ function applyTemplate() {
     const orderType = document.getElementById('orderTypeSelect')?.value;
     const instrBox = document.getElementById('defaultInstructionBox');
     const instrName = document.getElementById('instructionFileName');
+    const dropText = document.getElementById('dropZoneText'); // Находим наш текст
 
     if (!bodyArea) return;
 
+    // Настройка отображения инструкций и подсказок в DropZone
     if (orderType === 'local') {
         if (instrBox) instrBox.style.display = 'flex';
         if (instrName) instrName.innerText = "Инструкция_по_установке_электронной_версии_программы_1С.pdf (по умолчанию)";
-    } else if (orderType === 'dop') {
+        if (dropText) dropText.innerHTML = "Перетащите <b>Лицензию .ZIP</b> и <b>Карточку .PDF</b> или нажмите сюда";
+    } 
+    else if (orderType === 'dop') {
         if (instrBox) instrBox.style.display = 'none';
-    } else if (orderType === 'otrasl') {
+        if (dropText) dropText.innerHTML = "Перетащите <b>Лицензию .ZIP</b> и <b>Карточку .PDF</b> или нажмите сюда";
+    } 
+    else if (orderType === 'otrasl') {
         if (instrBox) instrBox.style.display = 'flex';
         if (instrName) instrName.innerText = "Инструкция по активации КП Отраслевой.ppsx (по умолчанию)";
+        // Меняем текст на "только ZIP"
+        if (dropText) dropText.innerHTML = "Перетащите <b>Лицензию .ZIP</b> или нажмите сюда";
     }
 
     const content = `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff;"><tr><td align="center"><div style="width: 580px; font-family: Arial, sans-serif; font-size: 18px; line-height: 1.2; color: #000000; text-align: center;"><h2 style="color: #D71920; font-size: 26px; font-weight: bold; margin-bottom: 20px;">Уважаемый клиент!</h2><p style="margin-bottom: 15px;"><b>Вы заказывали программный продукт<br>${delivery}.</b></p><p style="margin-bottom: 25px;">Отгрузка выполнена, направляю Вам во вложении<br>инструкцию для установки программного продукта, а также архив лицензии.</p><p style="margin-bottom: 10px;">Обращаю Ваше внимание, приложенный архив с лицензией рекомендую отдельно сохранить в надежном месте, на случай переустановки программы или выхода из строя персонального компьютера.</p></div></td></tr></table>`.replace(/>\s+</g, '><').replace(/\n/g, ' ').trim();
@@ -259,10 +283,19 @@ async function sendMail() {
 
     if (!to || !org || !delivery) { alert("Заполните Кому, Организацию и Поставку!"); return; }
 
-    if (orderType === 'local' && (!attachedFiles.license || !attachedFiles.registration)) {
-        alert("Для локальной 1С нужны и Лицензия (ZIP), и Карточка (PDF)!"); return;
-    } else if ((orderType === 'dop' || orderType === 'otrasl') && !attachedFiles.license) {
-        alert("Для этого типа отгрузки обязательна Лицензия (ZIP)!"); return;
+    // --- ОБНОВЛЕННАЯ ЛОГИКА ПРОВЕРКИ ФАЙЛОВ ---
+    if (orderType === 'local' || orderType === 'dop') {
+        // Для локальной и ДОП нужны ОБА файла (ZIP + PDF)
+        if (!attachedFiles.license || !attachedFiles.registration) {
+            alert("Для этого типа отгрузки нужны и Лицензия (ZIP), и Карточка (PDF)!"); 
+            return;
+        }
+    } else if (orderType === 'otrasl') {
+        // Для отраслевой нужен ТОЛЬКО ZIP
+        if (!attachedFiles.license) {
+            alert("Для отраслевой отгрузки обязательна Лицензия (ZIP)!"); 
+            return;
+        }
     }
 
     try {
@@ -270,10 +303,21 @@ async function sendMail() {
         if (attachedFiles.license) filesToUpload.push({ name: attachedFiles.license.name, content: await fileToBase64(attachedFiles.license) });
         if (attachedFiles.registration) filesToUpload.push({ name: attachedFiles.registration.name, content: await fileToBase64(attachedFiles.registration) });
 
+        // --- ОПРЕДЕЛЯЕМ ИНСТРУКЦИЮ ПО УМОЛЧАНИЮ ---
+        let defaultInstruction = null;
+        if (orderType === 'local') {
+            defaultInstruction = "Инструкция_по_установке_электронной_версии_программы_1С.pdf";
+        } else if (orderType === 'otrasl') {
+            defaultInstruction = "Инструкция по активации КП Отраслевой.ppsx";
+        }
+
         const payload = { 
             order_type: orderType,
-            to, subject: `${delivery} ${org} (лицензия)`.trim(), body,
-            files: filesToUpload 
+            to, 
+            subject: `${delivery} ${org} (лицензия)`.trim(), 
+            body,
+            files: filesToUpload,
+            default_instruction: defaultInstruction // Передаем серверу, какую инструкцию приложить
         };
 
         const response = await fetch(`${LOCAL_SERVER}/send_email`, {
@@ -293,11 +337,41 @@ async function sendMail() {
 }
 
 // --- МОДАЛКА ---
-function openMailModal() {
+async function openMailModal() {
     const modal = document.getElementById('mailModal');
+    const errorBox = document.getElementById('gatewayError');
+    
     if (modal) {
         modal.style.display = 'block';
+        
+        // --- ПРОВЕРКА ШЛЮЗА ---
+        try {
+            // Быстрый запрос на проверку (таймаут 1 сек)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 1000);
+            
+            const response = await fetch(`${LOCAL_SERVER}/ping`, { signal: controller.signal });
+            clearTimeout(timeoutId);
+
+            if (response.ok) {
+                if (errorBox) errorBox.style.display = 'none';
+            } else {
+                throw new Error();
+            }
+        } catch (err) {
+            if (errorBox) errorBox.style.display = 'flex'; // Показываем ошибку
+        }
+
+        // 1. Сразу применяем шаблон при открытии
         applyTemplate();
+
+        // 2. Вешаем событие на СЕЛЕКТОР
+        const typeSelect = document.getElementById('orderTypeSelect');
+        if (typeSelect) {
+            typeSelect.onchange = applyTemplate; 
+        }
+
+        // 3. Обновляем текст письма при вводе данных в поля
         document.getElementById('mailOrg')?.addEventListener('input', applyTemplate);
         document.getElementById('mailDeliveryName')?.addEventListener('input', applyTemplate);
     }
@@ -318,67 +392,168 @@ window.onclick = function(event) {
 }
 
 // --- РЕКВИЗИТЫ И СФР ---
+
+// --- ОСНОВНОЙ ПОИСК РЕКВИЗИТОВ ---
 async function getData() {
     const innRaw = document.getElementById('innInput').value.trim();
     const body = document.getElementById('resBody');
     const errorBox = document.getElementById('errorBox');
+    const resDivSfr = document.getElementById('sfrResult');
+    
     if (!innRaw) return;
     const inn = innRaw.replace(/\D/g, '');
-    errorBox.innerText = "";
-    document.getElementById('resTable').style.display = 'none';
 
+    errorBox.innerText = "";
+    resDivSfr.innerHTML = ""; 
+    document.getElementById('resTable').style.display = 'none';
+    
     try {
         const response = await fetch("https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Accept": "application/json", "Authorization": "Token " + API_KEY },
+            method: "POST", 
+            headers: { 
+                "Content-Type": "application/json", 
+                "Accept": "application/json", 
+                "Authorization": "Token " + API_KEY 
+            },
             body: JSON.stringify({query: inn})
         });
+        
         const result = await response.json();
+        
         if (result.suggestions && result.suggestions.length > 0) {
             const d = result.suggestions[0].data;
-            const fields = [
-                ["Наименование", d.name?.full_with_opf || "—"],
-                ["ИНН", d.inn || "—"],
-                ["КПП", d.kpp || "—"],
-                ["ОГРН", d.ogrn || "—"],
-                ["Адрес", d.address?.value || "—"],
-                ["Руководитель", d.management?.name || "—"],
-                ["Статус", d.state?.status === "ACTIVE" ? "✅ Действующее" : "⚠️ " + d.state?.status]
-            ];
-            body.innerHTML = fields.map(f => `<tr><td><b>${f[0]}</b></td><td>${f[1]} <button class="copy-btn" onclick="copyText('${f[1]}', this)">📋</button></td></tr>`).join("") + 
-            `<tr><td><b>Код СФР</b></td><td><strong id="sfrValue" style="color:#007bff;">Не указан</strong> <button class="copy-btn" onclick="getSfrOnly()">Запросить</button></td></tr>`;
-            document.getElementById('resTable').style.display = 'table';
-            if (document.getElementById('mailOrg')) {
-                document.getElementById('mailOrg').value = d.name?.short_with_opf || d.name?.full_with_opf || "";
-                applyTemplate();
+            
+            const postalCode = d.address?.data?.postal_code || "";
+            let fullAddress = d.address?.value || "—";
+            if (postalCode && !fullAddress.includes(postalCode)) {
+                fullAddress = postalCode + ", " + fullAddress;
             }
-        } else { errorBox.innerText = "ИНН не найден"; }
-    } catch (e) { errorBox.innerText = "Ошибка DaData"; }
+
+            let taxOfficeTerr = d.address?.data?.tax_office || d.tax_authority || d.tax_authority_reg || "—";
+
+            const fields = [
+                ["ИНН", d.inn], 
+                ["КПП", d.kpp], 
+                ["ОГРН", d.ogrn], 
+                ["ОКПО", d.okpo],
+                ["Полное имя", d.name?.full_with_opf], 
+                ["Сокр. имя", d.name?.short_with_opf],
+                ["Адрес", fullAddress], 
+                ["ОКВЭД", d.okved],
+                ["Руководитель", d.management?.name || result.suggestions[0].value],
+                ["ИФНС Терр.", taxOfficeTerr],
+            ];
+            
+            let html = fields.map(f => `<tr><td>${f[0]}</td><td>${f[1] || "—"}</td></tr>`).join("");
+            
+            // Добавляем строку СФР с кнопкой и ТУЛТИПОМ
+            html += `
+                <tr>
+                    <td>Код СФР 
+                        <span class="tooltip"><span class="tooltip-icon">?</span><span class="tooltiptext">Из-за протоколов безопасности сайта СФР данные запрашиваются через защищенный шлюз с вводом капчи. Для работы функции необходимо один раз установить на ПК локальный модуль (sfr_engine.exe). Модуль автоматически прописывается в автозагрузку, работает в фоновом режиме и не требует ручного запуска при каждом использовании сайта.</span></span>
+                    </td>
+                    <td>
+                        <strong id="sfrValue" style="color:#007bff;">Не указан</strong>
+                        <button id="btnGetSfr" class="copy-btn" onclick="getSfrOnly()" style="margin-left:10px; padding:2px 8px; font-size:11px;">Запросить</button>
+                    </td>
+                </tr>
+            `;
+
+            body.innerHTML = html;
+            document.getElementById('resTable').style.display = 'table';
+            
+        } else { 
+            errorBox.innerText = "Не найдено"; 
+        }
+    } catch (e) { 
+        errorBox.innerText = "Ошибка API"; 
+    }
 }
 
+// --- ЛОГИКА СФР ЧЕРЕЗ EXE МОДУЛЬ ---
 async function getSfrOnly() {
     const inn = document.getElementById('innInput').value.replace(/\D/g, '');
     const resDiv = document.getElementById('sfrResult');
+    
+    if (inn.length < 10) {
+        alert("Введите корректный ИНН!");
+        return;
+    }
+
+    resDiv.innerHTML = "⌛ Проверка связи с модулем...";
+
     try {
-        const capResp = await fetch(`${LOCAL_SERVER}/get_captcha`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ inn }) });
+        const ping = await fetch(`${LOCAL_SERVER}/ping`);
+        if (!ping.ok) throw new Error();
+
+        resDiv.innerHTML = "⌛ Получение капчи...";
+        const capResp = await fetch(`${LOCAL_SERVER}/get_captcha`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ inn: inn })
+        });
         const capData = await capResp.json();
+
         if (capData.image) {
-            resDiv.innerHTML = `<div style="border:1px solid #ddd; padding:10px; background:#fff;"><img src="data:image/png;base64,${capData.image}"><br><input type="text" id="capAns" style="width:60px; margin-top:5px;"><button onclick="confirmSfrOnly('${inn}')">ОК</button></div>`;
+            resDiv.innerHTML = `
+                <div style="border:1px solid #ddd; padding:15px; margin-top:10px; background:#fff; border-radius:8px; display:inline-block;">
+                    <p style="margin:0 0 10px 0;">Введите код с картинки:</p>
+                    <img src="data:image/png;base64,${capData.image}" style="display:block; margin-bottom:10px; border:1px solid #eee;">
+                    <input type="text" id="capAns" placeholder="Цифры" style="width:80px; padding:6px; border:1px solid #ccc;">
+                    <button class="primary-btn" id="btnConfirmCap" onclick="confirmSfrOnly('${inn}')" style="padding:6px 12px; cursor:pointer;">ОК</button>
+                </div>
+            `;
+
+            const capInput = document.getElementById('capAns');
+            capInput.focus();
+            capInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') confirmSfrOnly(inn);
+            });
+
+        } else {
+            resDiv.innerHTML = "❌ Ошибка: " + (capData.error || "неизвестно");
         }
-    } catch (e) { resDiv.innerHTML = "Gateway не запущен"; }
+    } catch (e) {
+        resDiv.innerHTML = `
+            <div style="background:#fff3cd; padding:15px; border:1px solid #ffeeba; color:#856404; border-radius:8px; margin-top:10px;">
+                <strong>Модуль СФР не запущен!</strong><br>
+                <a href="app/sfr_engine.exe" download style="display:inline-block; background:#d32f2f; color:#fff; padding:8px 15px; text-decoration:none; border-radius:4px; margin-top:10px; font-weight:bold;">📥 Скачать sfr_engine.exe</a>
+            </div>
+        `;
+    }
 }
 
 async function confirmSfrOnly(inn) {
-    const ans = document.getElementById('capAns').value;
+    const ansInput = document.getElementById('capAns');
+    const resDiv = document.getElementById('sfrResult');
+    const sfrValue = document.getElementById('sfrValue');
+    
+    if (!ansInput || !ansInput.value) return;
+    resDiv.innerHTML = "⌛ Запрос в СФР...";
+
     try {
-        const resp = await fetch(`${LOCAL_SERVER}/submit_sfr`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ inn, captchaAnswer: ans }) });
+        const resp = await fetch(`${LOCAL_SERVER}/submit_sfr`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ inn: inn, captchaAnswer: ansInput.value })
+        });
+        
         const result = await resp.json();
-        if (result.regNum) { 
-            document.getElementById('sfrValue').innerText = result.regNum; 
-            document.getElementById('sfrResult').innerHTML = "✅ Код получен";
+
+        if (result.regNum) {
+            sfrValue.innerText = result.regNum;
+            sfrValue.style.color = "#28a745";
+            resDiv.innerHTML = "✅ Код успешно получен";
+            document.getElementById('btnGetSfr').style.display = 'none';
+        } else {
+            alert("Ошибка СФР: " + (result.message || "Неверная капча"));
+            getSfrOnly();
         }
-    } catch (e) {}
+    } catch (e) {
+        resDiv.innerHTML = "❌ Ошибка связи с сервером.";
+    }
 }
+
 
 async function getIfnsByAddress() {
     const addr = document.getElementById('addressInput').value.trim();
