@@ -606,7 +606,7 @@ async function getIfnsByAddress() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    initAll();
+    
     document.getElementById('addressInput')?.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') getIfnsByAddress();
     });
