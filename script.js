@@ -54,15 +54,15 @@ async function loadLinks(url, targetId) {
             const val = cols[1].replace(/"/g, '').trim();
             const isDownloadable = val.includes('export=download');
 
-            // --- ИЗМЕНЕНИЯ ТОЛЬКО ДЛЯ linksContainer ---
+            // --- ИЗМЕНЕНИЯ ТОЛЬКО ДЛЯ linksContainer (Часто используемые) ---
             if (targetId === 'linksContainer') {
                 return `<div class="link-item">
                     <div class="link-info">
-                        <span class="link-name">${name}</span>
+                        <span class="link-name" style="font-weight:bold; color:#333; cursor:default; user-select:none;">${name}</span>
                         <a href="${val}" target="_blank" class="link-url" style="font-size: 13px; color: #1a73e8; text-decoration: underline; display: block; margin-top: 2px;">${val}</a>
                     </div>
                     <div style="display:flex; gap:5px;">
-                        <button class="copy-btn" onclick="copyText('${val}', this)">📋</button>
+                        <button class="copy-btn" onclick="copyText('${val}', this)" title="Копировать">📋</button>
                     </div>
                 </div>`;
             }
@@ -75,10 +75,22 @@ async function loadLinks(url, targetId) {
                     : `<a href="${val}" target="_blank" class="copy-btn" style="text-decoration:none;" title="Открыть ссылку">🔗</a>`;
             }
             const urlDisplay = isDownloadable ? 'display: none;' : '';
-            return `<div class="link-item"><div class="link-info"><span class="link-name">${name}</span><span class="link-url" style="${urlDisplay}">${val}</span></div><div style="display:flex; gap:5px;">${actionBtn}<button class="copy-btn" onclick="copyText('${val}', this)">📋</button></div></div>`;
+            
+            return `<div class="link-item">
+                <div class="link-info">
+                    <span class="link-name">${name}</span>
+                    <span class="link-url" style="${urlDisplay}">${val}</span>
+                </div>
+                <div style="display:flex; gap:5px;">
+                    ${actionBtn}
+                    <button class="copy-btn" onclick="copyText('${val}', this)" title="Копировать">📋</button>
+                </div>
+            </div>`;
             
         }).join('');
-    } catch(e) { container.innerHTML = "<div style='padding:10px; color:red;'>Ошибка загрузки</div>"; }
+    } catch(e) { 
+        container.innerHTML = "<div style='padding:10px; color:red;'>Ошибка загрузки</div>"; 
+    }
 }
 
 
