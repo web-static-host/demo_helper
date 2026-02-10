@@ -16,7 +16,6 @@ async function initAll() {
     loadLinks(GOOGLE_SHEET_CSV_URL, 'linksContainer');
     loadLinks(OFD_CONFIG_CSV_URL, 'ofdLinksContainer');
     loadLinks(INSTRUCTIONS_CSV_URL, 'instructionsContainer'); 
-    loadStaff();
     loadManagers();
     initDragAndDrop(); 
 }
