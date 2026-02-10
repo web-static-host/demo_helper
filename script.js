@@ -50,19 +50,37 @@ async function loadLinks(url, targetId) {
         container.innerHTML = rows.map(row => {
             const cols = row.split(/[,;](?=(?:(?:[^"]*"){2})*[^"]*$)/);
             if (cols.length < 2) return '';
+            
             const name = cols[0].replace(/"/g, '').trim();
             const val = cols[1].replace(/"/g, '').trim();
             const isDownloadable = val.includes('export=download');
-            let actionBtn = '';
-            if (targetId !== 'ofdLinksContainer') {
-                actionBtn = isDownloadable 
-                    ? `<a href="${val}" download class="copy-btn" style="text-decoration:none;" title="Скачать файл">📥</a>`
-                    : `<a href="${val}" target="_blank" class="copy-btn" style="text-decoration:none;" title="Открыть ссылку">🔗</a>`;
-            }
-            const urlDisplay = isDownloadable ? 'display: none;' : '';
-            return `<div class="link-item"><div class="link-info"><span class="link-name">${name}</span><span class="link-url" style="${urlDisplay}">${val}</span></div><div style="display:flex; gap:5px;">${actionBtn}<button class="copy-btn" onclick="copyText('${val}', this)">📋</button></div></div>`;
+
+            // Название оставляем просто текстом
+            const nameHtml = `<span class="link-name" style="font-weight:bold; color:#555;">${name}</span>`;
+            
+            // Ссылку делаем кликабельной, синей и покрупнее
+            // Если это файл (isDownloadable), добавляем атрибут download
+            const linkHtml = `<a href="${val}" 
+                                ${isDownloadable ? 'download' : 'target="_blank"'} 
+                                class="link-url" 
+                                style="font-size: 13px; color: #1a73e8; text-decoration: underline; margin-top: 2px; display: block;">
+                                ${val}
+                             </a>`;
+
+            return `
+                <div class="link-item" style="display:flex; justify-content:space-between; align-items:center; padding: 8px 0; border-bottom: 1px solid #f0f0f0;">
+                    <div class="link-info" style="display:flex; flex-direction:column; max-width: 85%;">
+                        ${nameHtml}
+                        ${linkHtml}
+                    </div>
+                    <div style="display:flex; gap:5px;">
+                        <button class="copy-btn" onclick="copyText('${val}', this)" title="Скопировать ссылку" style="cursor:pointer; background:none; border:none; font-size:16px;">📋</button>
+                    </div>
+                </div>`;
         }).join('');
-    } catch(e) { container.innerHTML = "<div style='padding:10px; color:red;'>Ошибка загрузки</div>"; }
+    } catch(e) { 
+        container.innerHTML = "<div style='padding:10px; color:red;'>Ошибка загрузки</div>"; 
+    }
 }
 
 let staffData = [];
@@ -450,7 +468,7 @@ async function getData() {
             html += `
                 <tr>
                     <td>Код СФР 
-                        <span class="tooltip"><span class="tooltip-icon">?</span><span class="tooltiptext">Из-за протоколов безопасности сайта СФР данные запрашиваются через защищенный шлюз с вводом капчи. Для работы функции необходимо один раз установить на ПК локальный модуль (sfr_engine.exe). Модуль автоматически прописывается в автозагрузку, работает в фоновом режиме и не требует ручного запуска при каждом использовании сайта.</span></span>
+                        <span class="tooltip"><span class="tooltip-icon">?</span><span class="tooltiptext">Из-за протоколов безопасности сайта СФР данные запрашиваются через защищенный шлюз с вводом капчи. Для работы функции необходимо один раз установить на ПК локальный шлюз (gateway.exe). Он автоматически прописывается в автозагрузку, работает в фоновом режиме и не требует ручного запуска при каждом использовании сайта.</span></span>
                     </td>
                     <td>
                         <strong id="sfrValue" style="color:#007bff;">Не указан</strong>
@@ -516,8 +534,8 @@ async function getSfrOnly() {
     } catch (e) {
         resDiv.innerHTML = `
             <div style="background:#fff3cd; padding:15px; border:1px solid #ffeeba; color:#856404; border-radius:8px; margin-top:10px;">
-                <strong>Модуль СФР не запущен!</strong><br>
-                <a href="app/sfr_engine.exe" download style="display:inline-block; background:#d32f2f; color:#fff; padding:8px 15px; text-decoration:none; border-radius:4px; margin-top:10px; font-weight:bold;">📥 Скачать sfr_engine.exe</a>
+                <strong>Шлюз не запущен!</strong><br>
+                <a href="app/gateway.exe" download style="display:inline-block; background:#d32f2f; color:#fff; padding:8px 15px; text-decoration:none; border-radius:4px; margin-top:10px; font-weight:bold;">📥 Скачать Шлюз</a>
             </div>
         `;
     }

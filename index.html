@@ -40,7 +40,7 @@
             <summary>
                 <div class="summary-content">
                     <span>Часто используемые ссылки</span>
-                    <span class="tooltip"><span class="tooltip-icon">?</span><span class="tooltiptext">Быстрый переход или копирование адресов сайтов.</span></span>
+                    <span class="tooltip"><span class="tooltip-icon">?</span><span class="tooltiptext">Быстрый переход или копирование адресов сайтов (ФНС, Астрал Отчет, ЛК ОФД).Избавляет от необходимости ручного ввода длинных URL-адресов на компьютере клиента. Кнопка 📋 копирует ссылку в буфер обмена мгновенно.</span></span>
                 </div>
             </summary>
             <div id="linksContainer" class="links-list">Загрузка...</div>
@@ -50,7 +50,7 @@
             <summary>
                 <div class="summary-content">
                     <span>Инструкции для менеджеров</span>
-                    <span class="tooltip"><span class="tooltip-icon">?</span><span class="tooltiptext">Инструкции в формате pdf или ссылки для клиентов.</span></span>
+                    <span class="tooltip"><span class="tooltip-icon">?</span><span class="tooltiptext">Здесь находятся инструкции в формате pdf, либо ссылки на инструкции, которые иногда запрашивают менеджеры, чтобы отправить их клиентам</span></span>
                 </div>
             </summary>
             <div id="instructionsContainer" class="links-list">Загрузка...</div>
@@ -67,7 +67,8 @@
                 <div id="ofdLinksContainer" class="links-list" style="margin-bottom:10px;">Загрузка...</div>
                 
                 <div style="display: flex; align-items: center; justify-content: flex-start;">
-                    <button onclick="toggleAstral()" style="padding:8px; cursor:pointer; flex-grow: 1;">Показать данные Астрал Софт</button>
+                    <button onclick="toggleAstral()" style="padding:8px; cursor:pointer; flex-grow: 1;">ИНН компании, регистрирующей ККТ</button>
+                    <span class="tooltip" style="margin-left: 8px;"><span class="tooltip-icon">?</span><span class="tooltiptext">Кнопка открывает расширенные данные (ИНН и Email сотрудников). Это важно для регистрации касс Атол на новых версиях драйверов, где требуется ввод данных сервисной организации.</span></span>
                 </div>
 
                 <div id="astralBox" class="astral-box" style="display:none; margin-top: 10px;">
@@ -108,6 +109,7 @@
             <summary>
                 <div class="summary-content">
                     <span>Генератор паролей</span>
+                    <span class="tooltip"><span class="tooltip-icon">?</span><span class="tooltiptext">Иногда клиенты просят придумать за них пароль. Его можно сгенерировать здесь и сохранить к нему на рабочий стол</span></span>
                 </div>
             </summary>
             <div style="padding-top:10px;">
@@ -128,7 +130,7 @@
         <details class="tool-section">
             <summary>
                 <div class="summary-content">
-                    <span>Шаблоны писем</span>
+                    <span>Шаблоны писем для отгрузки 1С</span>
                     <span class="tooltip"><span class="tooltip-icon">?</span><span class="tooltiptext">Подготовка письма для отправки через Thunderbird.</span></span>
                 </div>
             </summary>
