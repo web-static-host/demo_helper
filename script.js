@@ -50,39 +50,35 @@ async function loadLinks(url, targetId) {
         container.innerHTML = rows.map(row => {
             const cols = row.split(/[,;](?=(?:(?:[^"]*"){2})*[^"]*$)/);
             if (cols.length < 2) return '';
-            
             const name = cols[0].replace(/"/g, '').trim();
             const val = cols[1].replace(/"/g, '').trim();
-            
             const isDownloadable = val.includes('export=download');
-            
-            // Кнопка действия (скачать/перейти) создается для всех, КРОМЕ ОФД
+
+            // --- ИЗМЕНЕНИЯ ТОЛЬКО ДЛЯ linksContainer ---
+            if (targetId === 'linksContainer') {
+                return `<div class="link-item">
+                    <div class="link-info">
+                        <span class="link-name">${name}</span>
+                        <a href="${val}" target="_blank" class="link-url" style="font-size: 13px; color: #1a73e8; text-decoration: underline; display: block; margin-top: 2px;">${val}</a>
+                    </div>
+                    <div style="display:flex; gap:5px;">
+                        <button class="copy-btn" onclick="copyText('${val}', this)">📋</button>
+                    </div>
+                </div>`;
+            }
+
+            // --- ОСТАЛЬНЫЕ ВКЛАДКИ (БЕЗ ИЗМЕНЕНИЙ) ---
             let actionBtn = '';
             if (targetId !== 'ofdLinksContainer') {
                 actionBtn = isDownloadable 
                     ? `<a href="${val}" download class="copy-btn" style="text-decoration:none;" title="Скачать файл">📥</a>`
                     : `<a href="${val}" target="_blank" class="copy-btn" style="text-decoration:none;" title="Открыть ссылку">🔗</a>`;
             }
-
-            // Скрываем текст ссылки ТОЛЬКО для файлов скачивания, чтобы не загромождать. 
-            // Для ОФД и обычных ссылок текст остается видимым.
             const urlDisplay = isDownloadable ? 'display: none;' : '';
-
-            return `
-                <div class="link-item">
-                    <div class="link-info">
-                        <span class="link-name">${name}</span>
-                        <span class="link-url" style="${urlDisplay}">${val}</span>
-                    </div>
-                    <div style="display:flex; gap:5px;">
-                        ${actionBtn}
-                        <button class="copy-btn" onclick="copyText('${val}', this)" title="Копировать">📋</button>
-                    </div>
-                </div>`;
+            return `<div class="link-item"><div class="link-info"><span class="link-name">${name}</span><span class="link-url" style="${urlDisplay}">${val}</span></div><div style="display:flex; gap:5px;">${actionBtn}<button class="copy-btn" onclick="copyText('${val}', this)">📋</button></div></div>`;
+            
         }).join('');
-    } catch(e) { 
-        container.innerHTML = "<div style='padding:10px; color:red;'>Ошибка загрузки</div>"; 
-    }
+    } catch(e) { container.innerHTML = "<div style='padding:10px; color:red;'>Ошибка загрузки</div>"; }
 }
 
 
