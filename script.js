@@ -278,7 +278,7 @@ function applyTemplate() {
     const orderType = document.getElementById('orderTypeSelect')?.value;
     const instrBox = document.getElementById('defaultInstructionBox');
     const instrName = document.getElementById('instructionFileName');
-    const dropText = document.getElementById('dropZoneText'); // Находим наш текст
+    const dropText = document.getElementById('dropZoneText');
 
     if (!bodyArea) return;
 
@@ -295,11 +295,18 @@ function applyTemplate() {
     else if (orderType === 'otrasl') {
         if (instrBox) instrBox.style.display = 'flex';
         if (instrName) instrName.innerText = "Инструкция по активации КП Отраслевой.ppsx (по умолчанию)";
-        // Меняем текст на "только ZIP"
         if (dropText) dropText.innerHTML = "Перетащите <b>Лицензию .ZIP</b> или нажмите сюда";
     }
 
-    const content = `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff;"><tr><td align="center"><div style="width: 580px; font-family: Arial, sans-serif; font-size: 18px; line-height: 1.2; color: #000000; text-align: center;"><h2 style="color: #D71920; font-size: 26px; font-weight: bold; margin-bottom: 20px;">Уважаемый клиент!</h2><p style="margin-bottom: 15px;"><b>Вы заказывали программный продукт<br>${delivery}.</b></p><p style="margin-bottom: 25px;">Отгрузка выполнена, направляю Вам во вложении<br>инструкцию для установки программного продукта, а также архив лицензии.</p><p style="margin-bottom: 10px;">Обращаю Ваше внимание, приложенный архив с лицензией рекомендую отдельно сохранить в надежном месте, на случай переустановки программы или выхода из строя персонального компьютера.</p></div></td></tr></table>`.replace(/>\s+</g, '><').replace(/\n/g, ' ').trim();
+    // Определяем текст в зависимости от типа отгрузки
+    let middleText = "Отгрузка выполнена, направляю Вам во вложении<br>инструкцию для установки программного продукта, а также архив лицензии.";
+    
+    if (orderType === 'dop') {
+        middleText = "Отгрузка выполнена, направляю Вам во вложении архив лицензии.";
+    }
+
+    const content = `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff;"><tr><td align="center"><div style="width: 580px; font-family: Arial, sans-serif; font-size: 18px; line-height: 1.2; color: #000000; text-align: center;"><h2 style="color: #D71920; font-size: 26px; font-weight: bold; margin-bottom: 20px;">Уважаемый клиент!</h2><p style="margin-bottom: 15px;"><b>Вы заказывали программный продукт<br>${delivery}.</b></p><p style="margin-bottom: 25px;">${middleText}</p><p style="margin-bottom: 10px;">Обращаю Ваше внимание, приложенный архив с лицензией рекомендую отдельно сохранить в надежном месте, на случай переустановки программы или выхода из строя персонального компьютера.</p></div></td></tr></table>`.replace(/>\s+</g, '><').replace(/\n/g, ' ').trim();
+    
     bodyArea.value = content;
 }
 
@@ -363,6 +370,21 @@ async function sendMail() {
             alert("Ошибка шлюза: " + (result.error || "Неизвестная ошибка"));
         }
     } catch (error) { alert("Шлюз не отвечает!"); }
+
+    if (response.ok && result.status === "success") {
+            alert("Окно письма открыто в Thunderbird");
+            
+            // --- ПРАВКА: ОЧИСТКА ПОЛЕЙ ПОСЛЕ УСПЕХА ---
+            document.getElementById('mailTo').value = "";
+            document.getElementById('mailOrg').value = "";
+            document.getElementById('mailDeliveryName').value = "";
+            // Сбрасываем прикрепленные файлы
+            attachedFiles = { license: null, registration: null };
+            if (document.getElementById('fileList')) document.getElementById('fileList').innerHTML = "";
+            if (document.getElementById('fileLic')) document.getElementById('fileLic').value = "";
+            
+            closeMailModal();
+        }
 }
 
 // --- МОДАЛКА ---
