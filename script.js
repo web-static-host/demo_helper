@@ -369,9 +369,8 @@ async function sendMail() {
         } else {
             alert("Ошибка шлюза: " + (result.error || "Неизвестная ошибка"));
         }
-    } catch (error) { alert("Шлюз не отвечает!"); }
-
-    if (response.ok && result.status === "success") {
+        
+            if (response.ok && result.status === "success") {
             alert("Окно письма открыто в Thunderbird");
             
             // --- ПРАВКА: ОЧИСТКА ПОЛЕЙ ПОСЛЕ УСПЕХА ---
@@ -385,6 +384,9 @@ async function sendMail() {
             
             closeMailModal();
         }
+    } catch (error) { alert("Шлюз не отвечает!"); }
+
+
 }
 
 // --- МОДАЛКА ---
