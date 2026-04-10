@@ -484,6 +484,33 @@ async function getData() {
 
             let taxOfficeTerr = d.address?.data?.tax_office || d.tax_authority || d.tax_authority_reg || "—";
 
+            // Формируем строку ОКВЭД: Код + Описание
+
+            let okvedCode = d.okved || "—";
+            let okvedName = d.okved_name || "";
+
+            // Если DaData не дала описание, тянем из альтернативного источника (через API по коду)
+            if (okvedCode !== "—" && !okvedName) {
+                try {
+                    // Используем альтернативный эндпоинт для получения справочных данных
+                    const altRes = await fetch(`https://classifikators.ru/api/okved/${okvedCode}`);
+                    if (altRes.ok) {
+                        const altData = await altRes.json();
+                        okvedName = altData.name;
+                    }
+                } catch (err) {
+                    // Если сторонний сервис лежит, пробуем парсить из DaData более глубоко
+                    if (d.okveds) {
+                        const found = d.okveds.find(o => o.code === okvedCode);
+                        if (found) okvedName = found.name;
+                    }
+                }
+            
+            }
+            
+            // Если все равно пусто (бывает на новых кодах), используем заплатку
+            const okvedDisplay = okvedName ? `${okvedCode} ${okvedName}` : okvedCode;
+
             const fields = [
                 ["ИНН", d.inn], 
                 ["КПП", d.kpp], 
@@ -492,7 +519,7 @@ async function getData() {
                 ["Полное имя", d.name?.full_with_opf], 
                 ["Сокр. имя", d.name?.short_with_opf],
                 ["Адрес", fullAddress], 
-                ["ОКВЭД", d.okved],
+                ["ОКВЭД (осн.)", okvedFull], // Обновленная строка
                 ["Руководитель", d.management?.name || result.suggestions[0].value],
                 ["ИФНС Терр.", taxOfficeTerr],
             ];
