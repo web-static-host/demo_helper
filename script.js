@@ -52,16 +52,23 @@ async function loadLinks(url, targetId) {
             if (cols.length < 2) return '';
             const name = cols[0].replace(/"/g, '').trim();
             const val = cols[1].replace(/"/g, '').trim();
+            const logoUrl = cols.length > 2 ? cols[2].replace(/"/g, '').trim() : '';
             const isDownloadable = val.includes('export=download');
 
             // --- ИЗМЕНЕНИЯ ТОЛЬКО ДЛЯ linksContainer (Часто используемые) ---
             if (targetId === 'linksContainer') {
-                return `<div class="link-item">
-                    <div class="link-info">
-                        <span class="link-name" style="font-weight:bold; color:#333; cursor:default; user-select:none;">${name}</span>
-                        <a href="${val}" target="_blank" class="link-url" style="font-size: 13px; color: #1a73e8; text-decoration: underline; display: block; margin-top: 2px;">${val}</a>
+                // ДОБАВЛЕНО: Формируем HTML для логотипа, если URL существует
+                const logoHtml = logoUrl ? `<img src="${logoUrl}" alt="logo" style="width: 24px; height: 24px; object-fit: contain; margin-right: 10px; border-radius: 4px; flex-shrink: 0;">` : '';
+
+                return `<div class="link-item" style="display:flex; align-items:center;">
+                    <div style="display:flex; align-items:center; flex-grow: 1; overflow: hidden;">
+                        ${logoHtml}
+                        <div class="link-info">
+                            <span class="link-name" style="font-weight:bold; color:#333; cursor:default; user-select:none;">${name}</span>
+                            <a href="${val}" target="_blank" class="link-url" style="font-size: 13px; color: #1a73e8; text-decoration: underline; display: block; margin-top: 2px;">${val}</a>
+                        </div>
                     </div>
-                    <div style="display:flex; gap:5px;">
+                    <div style="display:flex; gap:5px; flex-shrink: 0;">
                         <button class="copy-btn" onclick="copyText('${val}', this)" title="Копировать">📋</button>
                     </div>
                 </div>`;
@@ -489,24 +496,23 @@ async function getData() {
             let okvedCode = d.okved || "—";
             let okvedName = d.okved_name || "";
 
-            // Если DaData не дала описание, тянем из альтернативного источника (через API по коду)
-            if (okvedCode !== "—" && !okvedName) {
-                try {
-                    // Используем альтернативный эндпоинт для получения справочных данных
-                    const altRes = await fetch(`https://classifikators.ru/api/okved/${okvedCode}`);
-                    if (altRes.ok) {
-                        const altData = await altRes.json();
-                        okvedName = altData.name;
-                    }
-                } catch (err) {
-                    // Если сторонний сервис лежит, пробуем парсить из DaData более глубоко
-                    if (d.okveds) {
-                        const found = d.okveds.find(o => o.code === okvedCode);
-                        if (found) okvedName = found.name;
-                    }
-                }
-            
+            // 1. Пытаемся вытащить из массива okveds, если он есть
+            if (!okvedName && d.okveds) {
+                const found = d.okveds.find(o => o.code === okvedCode);
+                if (found) okvedName = found.name;
             }
+
+            // 2. ГЕНИАЛЬНЫЙ ХАК: Парсим полное значение подсказки DaData
+            // В suggestion.value часто лежит строка вида "ОБЩЕСТВО... (01.13.1 ВЫРАЩИВАНИЕ ОВОЩЕЙ)"
+            if (!okvedName && suggestion.value.includes(okvedCode)) {
+                const parts = suggestion.value.split(okvedCode);
+                if (parts[1]) {
+                    okvedName = parts[1].replace(/[)]/g, '').trim();
+                }
+            }
+
+            // 3. Если совсем глухо — ставим "заплатку" для теста (потом можно расширить)
+            if (!okvedName && okvedCode === "01.13.1") okvedName = "не нашел";
             
             // Если все равно пусто (бывает на новых кодах), используем заплатку
             const okvedDisplay = okvedName ? `${okvedCode} ${okvedName}` : okvedCode;
@@ -551,55 +557,118 @@ async function getData() {
 }
 
 // --- ЛОГИКА СФР ЧЕРЕЗ EXE МОДУЛЬ ---
-async function getSfrOnly() {
-    const inn = document.getElementById('innInput').value.replace(/\D/g, '');
-    const resDiv = document.getElementById('sfrResult');
+async function getData() {
+    const innRaw = document.getElementById('innInput').value.trim();
+    const body = document.getElementById('resBody');
+    const errorBox = document.getElementById('errorBox');
+    const resDivSfr = document.getElementById('sfrResult');
     
-    if (inn.length < 10) {
-        alert("Введите корректный ИНН!");
-        return;
-    }
+    if (!innRaw) return;
+    const inn = innRaw.replace(/\D/g, '');
 
-    resDiv.innerHTML = "⌛ Проверка связи с модулем...";
-
+    errorBox.innerText = "";
+    resDivSfr.innerHTML = ""; 
+    document.getElementById('resTable').style.display = 'none';
+    
     try {
-        const ping = await fetch(`${LOCAL_SERVER}/ping`);
-        if (!ping.ok) throw new Error();
+        // Проверяем версию шлюза перед основным запросом
+        let gatewayVersion = 0;
+        try {
+            const vRes = await fetch("http://127.0.0.1:5000/ping");
+            const vData = await vRes.json();
+            gatewayVersion = parseFloat(vData.version);
+        } catch (e) { console.log("Шлюз не запущен"); }
 
-        resDiv.innerHTML = "⌛ Получение капчи...";
-        const capResp = await fetch(`${LOCAL_SERVER}/get_captcha`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ inn: inn })
+        const response = await fetch("https://suggestions.dadata.ru/suggestions/api/4_1/rs/findById/party", {
+            method: "POST", 
+            headers: { 
+                "Content-Type": "application/json", 
+                "Accept": "application/json", 
+                "Authorization": "Token " + API_KEY 
+            },
+            body: JSON.stringify({query: inn})
         });
-        const capData = await capResp.json();
+        
+        const result = await response.json();
+        
+        if (result.suggestions && result.suggestions.length > 0) {
+            const suggestion = result.suggestions[0];
+            const d = suggestion.data;
+            
+            const postalCode = d.address?.data?.postal_code || "";
+            let fullAddress = d.address?.value || "—";
+            if (postalCode && !fullAddress.includes(postalCode)) {
+                fullAddress = postalCode + ", " + fullAddress;
+            }
 
-        if (capData.image) {
-            resDiv.innerHTML = `
-                <div style="border:1px solid #ddd; padding:15px; margin-top:10px; background:#fff; border-radius:8px; display:inline-block;">
-                    <p style="margin:0 0 10px 0;">Введите код с картинки:</p>
-                    <img src="data:image/png;base64,${capData.image}" style="display:block; margin-bottom:10px; border:1px solid #eee;">
-                    <input type="text" id="capAns" placeholder="Цифры" style="width:80px; padding:6px; border:1px solid #ccc;">
-                    <button class="primary-btn" id="btnConfirmCap" onclick="confirmSfrOnly('${inn}')" style="padding:6px 12px; cursor:pointer;">ОК</button>
-                </div>
+            let taxOfficeTerr = d.address?.data?.tax_office || d.tax_authority || d.tax_authority_reg || "—";
+
+            // Логика ОКВЭД
+            let okvedCode = d.okved || "—";
+            let okvedName = d.okved_name || "";
+
+            if (!okvedName && d.okveds) {
+                const found = d.okveds.find(o => o.code === okvedCode);
+                if (found) okvedName = found.name;
+            }
+
+            if (!okvedName && suggestion.value.includes(okvedCode)) {
+                const parts = suggestion.value.split(okvedCode);
+                if (parts[1]) okvedName = parts[1].replace(/[)]/g, '').trim();
+            }
+
+            // Если DaData не дала описание, идем в шлюз 3.1
+            if (okvedCode !== "—" && !okvedName) {
+                if (gatewayVersion >= 3.1) {
+                    try {
+                        const localResponse = await fetch(`http://127.0.0.1:5000/get_okved_description?code=${okvedCode}`);
+                        if (localResponse.ok) {
+                            const okvedData = await localResponse.json();
+                            okvedName = okvedData.name;
+                        }
+                    } catch (err) { okvedName = "(описание недоступно)"; }
+                } else {
+                    okvedName = "<span style='color:red; font-size:10px;'>Для описания обновите шлюз до v3.1</span>";
+                }
+            }
+
+            const okvedFull = okvedName ? `${okvedCode} ${okvedName}` : okvedCode;
+
+            const fields = [
+                ["ИНН", d.inn], 
+                ["КПП", d.kpp], 
+                ["ОГРН", d.ogrn], 
+                ["ОКПО", d.okpo],
+                ["Полное имя", d.name?.full_with_opf], 
+                ["Сокр. имя", d.name?.short_with_opf],
+                ["Адрес", fullAddress], 
+                ["ОКВЭД (осн.)", okvedFull], 
+                ["Руководитель", d.management?.name || suggestion.value],
+                ["ИФНС Терр.", taxOfficeTerr],
+            ];
+            
+            let html = fields.map(f => `<tr><td>${f[0]}</td><td>${f[1] || "—"}</td></tr>`).join("");
+            
+            html += `
+                <tr>
+                    <td>Код СФР 
+                        <span class="tooltip"><span class="tooltip-icon">?</span><span class="tooltiptext">Из-за протоколов безопасности сайта СФР данные запрашиваются через защищенный шлюз с вводом капчи. Для работы функции необходимо один раз установить на ПК локальный шлюз (gateway.exe). Он автоматически прописывается в автозагрузку, работает в фоновом режиме и не требует ручного запуска при каждом использовании сайта.</span></span>
+                    </td>
+                    <td>
+                        <strong id="sfrValue" style="color:#007bff;">Не указан</strong>
+                        <button id="btnGetSfr" class="copy-btn" onclick="getSfrOnly()" style="margin-left:10px; padding:2px 8px; font-size:11px;">Запросить</button>
+                    </td>
+                </tr>
             `;
 
-            const capInput = document.getElementById('capAns');
-            capInput.focus();
-            capInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') confirmSfrOnly(inn);
-            });
-
-        } else {
-            resDiv.innerHTML = "❌ Ошибка: " + (capData.error || "неизвестно");
+            body.innerHTML = html;
+            document.getElementById('resTable').style.display = 'table';
+            
+        } else { 
+            errorBox.innerText = "Не найдено"; 
         }
-    } catch (e) {
-        resDiv.innerHTML = `
-            <div style="background:#fff3cd; padding:15px; border:1px solid #ffeeba; color:#856404; border-radius:8px; margin-top:10px;">
-                <strong>Шлюз не запущен!</strong><br>
-                <a href="app/gateway.exe" download style="display:inline-block; background:#d32f2f; color:#fff; padding:8px 15px; text-decoration:none; border-radius:4px; margin-top:10px; font-weight:bold;">📥 Скачать Шлюз</a>
-            </div>
-        `;
+    } catch (e) { 
+        errorBox.innerText = "Ошибка API"; 
     }
 }
 
