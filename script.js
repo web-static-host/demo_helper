@@ -603,35 +603,6 @@ async function getData() {
 
             let taxOfficeTerr = d.address?.data?.tax_office || d.tax_authority || d.tax_authority_reg || "—";
 
-            // Логика ОКВЭД
-            let okvedCode = d.okved || "—";
-            let okvedName = d.okved_name || "";
-
-            if (!okvedName && d.okveds) {
-                const found = d.okveds.find(o => o.code === okvedCode);
-                if (found) okvedName = found.name;
-            }
-
-            if (!okvedName && suggestion.value.includes(okvedCode)) {
-                const parts = suggestion.value.split(okvedCode);
-                if (parts[1]) okvedName = parts[1].replace(/[)]/g, '').trim();
-            }
-
-            // Если DaData не дала описание, идем в шлюз 3.1
-            if (okvedCode !== "—" && !okvedName) {
-                if (gatewayVersion >= 3.1) {
-                    try {
-                        const localResponse = await fetch(`http://127.0.0.1:5000/get_okved_description?code=${okvedCode}`);
-                        if (localResponse.ok) {
-                            const okvedData = await localResponse.json();
-                            okvedName = okvedData.name;
-                        }
-                    } catch (err) { okvedName = "(описание недоступно)"; }
-                } else {
-                    okvedName = "<span style='color:red; font-size:10px;'>Для описания обновите шлюз до v3.1</span>";
-                }
-            }
-
             const okvedFull = okvedName ? `${okvedCode} ${okvedName}` : okvedCode;
 
             const fields = [
@@ -642,7 +613,7 @@ async function getData() {
                 ["Полное имя", d.name?.full_with_opf], 
                 ["Сокр. имя", d.name?.short_with_opf],
                 ["Адрес", fullAddress], 
-                ["ОКВЭД (осн.)", okvedFull], 
+                ["ОКВЭД (осн.)", d.okved], 
                 ["Руководитель", d.management?.name || suggestion.value],
                 ["ИФНС Терр.", taxOfficeTerr],
             ];
